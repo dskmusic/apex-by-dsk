@@ -249,15 +249,15 @@ void GenerateButton::paint (juce::Graphics& g)
 {
     auto r = getLocalBounds().toFloat().reduced (4);
     const float pulse = busy ? 0.5f + 0.5f * std::sin ((float) t * 9.0f) : (over ? 0.6f : 0.0f);
-    g.setGradientFill (juce::ColourGradient (col::accent.withAlpha (0.18f + 0.35f * pulse), r.getCentreX(), r.getCentreY(), col::accent.withAlpha (0.0f), r.getX() - 6, r.getCentreY(), true));
+    g.setGradientFill (juce::ColourGradient (glowCol.withAlpha (0.18f + 0.35f * pulse), r.getCentreX(), r.getCentreY(), glowCol.withAlpha (0.0f), r.getX() - 6, r.getCentreY(), true));
     g.fillRoundedRectangle (r.expanded (6), 16.0f);
-    juce::ColourGradient body (col::accent.brighter (0.15f), r.getX(), r.getY(), col::accent3.darker (0.3f), r.getRight(), r.getBottom(), false);
+    juce::ColourGradient body (c1, r.getX(), r.getY(), c2, r.getRight(), r.getBottom(), false);
     g.setGradientFill (body);
     g.fillRoundedRectangle (r, 12.0f);
     g.setColour (juce::Colours::white.withAlpha (0.35f + 0.3f * pulse));
     g.drawRoundedRectangle (r.reduced (0.5f), 12.0f, 1.5f);
     g.setColour (juce::Colours::white);
-    g.setFont (techFont (busy ? 18.0f : 26.0f));
+    g.setFont (techFont (busy ? 18.0f : fontSize));
     g.drawText (busy ? L ("DISEÑANDO…", "DESIGNING…") : text, r, juce::Justification::centred);
 }
 
@@ -367,8 +367,8 @@ const Item items[] {
       "Todo se genera por síntesis, sin librerías de muestras: siempre es distinto y no pesa nada. Pensado para editores de vídeo, creadores, compositores de tráiler, juegos y podcasts.",
       "Apex creates trailer effects and cinematic sound design with one button: risers, impacts, whooshes, braams, tension, reverses, downers, glitches and transitions. "
       "Everything is synthesised, no sample libraries: it is always different and weighs nothing. Made for video editors, creators, trailer composers, games and podcasts." },
-    { "1. Elige tipo y pulsa GENERATE", "1. Pick a type and press GENERATE",
-      "Arriba eliges el TIPO (Riser, Impact, Whoosh…) y debajo el ESTILO. GENERATE diseña un efecto nuevo dentro de las reglas de ese tipo, lo valida (nivel, DC, chasquidos) y lo reproduce. "
+    { "1. Elige tipo y pulsa GENERAR", "1. Pick a type and press GENERATE",
+      "Arriba eliges el TIPO (Riser, Impact, Whoosh…) y debajo el ESTILO. GENERAR diseña un efecto nuevo dentro de las reglas de ese tipo, lo valida (nivel, DC, chasquidos) y lo reproduce. "
       "«Nueva semilla» cambia solo la variación; MUTAR toca un poco los controles; MEZCLAR cruza con otro efecto de la biblioteca.",
       "Choose the TYPE at the top (Riser, Impact, Whoosh…) and the STYLE below. GENERATE designs a new effect inside the rules of that type, validates it (level, DC, clicks) and plays it. "
       "\"New seed\" changes only the variation; MUTATE nudges the controls; MIX crosses it with another effect from the library." },

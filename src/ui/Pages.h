@@ -89,6 +89,8 @@ public:
     std::function<void()> onClick;
     bool busy = false;
     juce::String text = "GENERATE";
+    juce::Colour c1 = col::accent.brighter (0.15f), c2 = col::accent3.darker (0.3f), glowCol = col::accent;
+    float fontSize = 26.0f;
 private:
     bool over = false; double t = 0;
 };
@@ -135,7 +137,8 @@ private:
     DragHandle dragHandle;
     juce::OwnedArray<juce::TextButton> typeBtns, styleBtns;
     juce::TextButton newSeed { L ("Nueva semilla", "New seed") }, mutate { L ("Mutar", "Mutate") }, mix { L ("Mezclar", "Mix") },
-                     seedPrev { "<" }, seedNext { ">" }, playBtn { L ("Reproducir", "Play") }, stopBtn { "Stop" };
+                     seedPrev { "<" }, seedNext { ">" }, stopBtn { "Stop" };
+    GenerateButton playBtn;
     juce::ToggleButton lockStyle { L ("Fijar estilo", "Lock style") };
     juce::Label seedLabel, status, hint;
     Box timePanel, macroPanel;

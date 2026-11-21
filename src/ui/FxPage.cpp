@@ -64,11 +64,17 @@ FxPage::FxPage (Context& c)
         };
         addAndMakeVisible (b);
     }
-    for (auto* b : { &newSeed, &mutate, &mix, &seedPrev, &seedNext, &playBtn, &stopBtn }) addAndMakeVisible (b);
-    for (auto* b : { &newSeed, &mutate, &mix, &playBtn, &stopBtn }) b->getProperties().set ("small", true);
+    for (auto* b : { &newSeed, &mutate, &mix, &seedPrev, &seedNext, &stopBtn }) addAndMakeVisible (b);
+    addAndMakeVisible (playBtn);
+    for (auto* b : { &newSeed, &mutate, &mix, &stopBtn }) b->getProperties().set ("small", true);
+    playBtn.text = L ("REPRODUCIR", "PLAY");   // same Orbitron font as GENERATE
+    playBtn.fontSize = 19.0f;
+    playBtn.c1 = col::accent2.darker (0.1f); playBtn.c2 = juce::Colour (0xff2b5fd9); playBtn.glowCol = col::accent2;
+    playBtn.setTooltip (L ("Reproducir el efecto otra vez (barra espaciadora)", "Play the effect again (space bar)"));
     addAndMakeVisible (lockStyle);
-    lockStyle.setTooltip (L ("GENERATE respeta el estilo elegido en vez de probar otros", "GENERATE keeps the chosen style instead of trying others"));
+    lockStyle.setTooltip (L ("GENERAR respeta el estilo elegido en vez de probar otros", "GENERATE keeps the chosen style instead of trying others"));
     addAndMakeVisible (genBtn);
+    genBtn.text = L ("GENERAR", "GENERATE");
     addAndMakeVisible (dragHandle);
     dragHandle.setTooltip (L ("Arrastra el efecto como WAV a tu DAW o editor de vídeo", "Drag the effect as a WAV into your DAW or video editor"));
     genBtn.onClick = [this] { generate(); };
@@ -206,15 +212,16 @@ void FxPage::resized()
     r.removeFromTop (8);
     auto bar = r.removeFromTop (64);
     genBtn.setBounds (bar.removeFromLeft (270));
+    bar.removeFromLeft (8);
+    playBtn.setBounds (bar.removeFromLeft (170).reduced (0, 6));
     bar.removeFromLeft (10);
-    auto col1 = bar.removeFromLeft (360);
+    auto col1 = bar.removeFromLeft (340);
     auto top = col1.removeFromTop (30);
     newSeed.setBounds (top.removeFromLeft (112).reduced (2)); mutate.setBounds (top.removeFromLeft (100).reduced (2)); mix.setBounds (top.removeFromLeft (100).reduced (2));
     auto bot = col1.reduced (0, 2);
     seedPrev.setBounds (bot.removeFromLeft (26).reduced (1, 2));
     seedNext.setBounds (bot.removeFromLeft (26).reduced (1, 2));
     seedLabel.setBounds (bot.removeFromLeft (150));
-    playBtn.setBounds (bot.removeFromLeft (80).reduced (2, 2));
     stopBtn.setBounds (bot.removeFromLeft (60).reduced (2, 2));
     dragHandle.setBounds (bar.removeFromRight (190).reduced (0, 2));
     bar.removeFromRight (10);

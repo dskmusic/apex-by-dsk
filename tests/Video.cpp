@@ -51,20 +51,34 @@ int encode (const juce::File& work, const juce::File& out, const juce::String& w
     return code == 0 ? 0 : 1;
 }
 
-void caption (juce::Image& img, const juce::String& en, const juce::String& es, bool bi, float alpha = 1.0f)
+void caption (juce::Image& img, const juce::String& enIn, const juce::String& esIn, bool bi, float alpha = 1.0f)
 {
+    const auto& en = enIn; const auto& es = esIn;   // already decoded from UTF-8 by the caller
     juce::Graphics g (img);
-    const int w = img.getWidth(), h = img.getHeight();
-    g.setColour (juce::Colours::black.withAlpha (0.55f * alpha));
-    g.fillRect (0, h - (bi ? 86 : 60), w, bi ? 86 : 60);
-    g.setColour (juce::Colours::white.withAlpha (alpha));
-    g.setFont (gx::ui::techFont (22.0f));
-    g.drawText (en, 0, h - (bi ? 80 : 54), w, 34, juce::Justification::centred);
+    const int W = img.getWidth(), H = img.getHeight();
+    // same UI font as Infinitum's demo (Orbitron has no accents)
+    auto big = gx::ui::font (30.0f, true), small = gx::ui::font (22.0f, true);
+    auto width = [] (const juce::Font& f, const juce::String& s) { juce::GlyphArrangement ga; ga.addLineOfText (f, s, 0, 0); return ga.getBoundingBox (0, -1, true).getWidth(); };
+    const float w = juce::jmin ((float) W - 40.0f, juce::jmax (width (big, en), bi ? width (small, es) : 0.0f) + 80.0f);
+    const float h = bi ? 96.0f : 60.0f;
+    juce::Rectangle<float> r (((float) W - w) * 0.5f, (float) H - 70.0f - h, w, h);   // above the on-screen keyboard
+    g.setColour (juce::Colour (0xf00b0d1a).withMultipliedAlpha (alpha));
+    g.fillRoundedRectangle (r, 10.0f);
+    g.setColour (gx::ui::col::accent.withAlpha (alpha));
+    g.fillRoundedRectangle (r.withWidth (6.0f), 3.0f);
+    g.setColour (juce::Colours::white.withAlpha (0.12f * alpha));
+    g.drawRoundedRectangle (r.reduced (0.5f), 10.0f, 1.0f);
+    g.setColour (gx::ui::col::text.withAlpha (alpha));
+    g.setFont (big);
+    g.drawText (en, r.withTrimmedLeft (10).withHeight (bi ? 50.0f : h), juce::Justification::centred);
     if (bi)
     {
-        g.setColour (gx::ui::col::accent.withAlpha (alpha));
-        g.setFont (gx::ui::font (17.0f, true));
-        g.drawText (es, 0, h - 44, w, 28, juce::Justification::centred);
+        const auto line = r.withTrimmedLeft (10).withTrimmedTop (50.0f);
+        g.setColour (gx::ui::col::accent.withAlpha (0.35f * alpha));
+        g.fillRect (line.getX() + 40.0f, line.getY(), line.getWidth() - 80.0f, 1.0f);
+        g.setColour (gx::ui::col::accent2.withAlpha (alpha));
+        g.setFont (small);
+        g.drawText (es, line, juce::Justification::centred);
     }
 }
 
@@ -105,7 +119,7 @@ int runVideo (int argc, char** argv)
         { gx::fxImpact, 0, 21, 0.8f, 3.5f, "IMPACT  -  sub boom with a huge tail", "IMPACTO  -  boom grave con una cola enorme" },
         { gx::fxWhoosh, 0, 31, 1.2f, 0.9f, "WHOOSH  -  fast pass-by", "WHOOSH  -  paso rápido" },
         { gx::fxBraam, 0, 41, 1.0f, 5.0f, "BRAAM  -  brass swell", "BRAAM  -  metales graves" },
-        { gx::fxReverse, 1, 51, 3.0f, 2.0f, "REVERSE  -  suck-back into the hit", "REVERSO  -  suck-back hacia el golpe" },
+        { gx::fxReverse, 1, 51, 3.0f, 2.0f, "REVERSE  -  suck-back into the hit", "REVERSO  -  succión hacia el golpe" },
         { gx::fxTransition, 2, 61, 6.0f, 5.5f, "TRANSITION  -  riser + hit in one effect", "TRANSICIÓN  -  riser + golpe en un solo efecto" } };
 
     juce::AudioBuffer<float> audio (2, 0);
@@ -141,7 +155,7 @@ int runVideo (int argc, char** argv)
         pr.params[(size_t) gx::P::key] = 9.0f; pr.params[(size_t) gx::P::octave] = 1.0f; pr.params[(size_t) gx::P::hit] = juce::jmax (pr.params[(size_t) gx::P::hit], 0.6f);
         pr.applyTo (p);
         for (int k = 0; k < 400 && ! (p.renderer().latest() && p.renderer().isCurrent()); ++k) juce::MessageManager::getInstance()->runDispatchLoopUntil (25);
-        capEn = s.en; capEs = s.es;
+        capEn = juce::String::fromUTF8 (s.en); capEs = juce::String::fromUTF8 (s.es);   // literals are UTF-8: decode explicitly
         frames (24);                                   // a short pause on the new effect
         p.trigger();
         const int total = (int) std::ceil ((s.dur + s.tail) * 30.0) + 6;
@@ -153,7 +167,7 @@ int runVideo (int argc, char** argv)
         }
         std::printf ("scene %s done (%d frames)\n", s.en, frameNo);
     }
-    capEn = "APEX by DSK  -  free trailer FX generator"; capEs = "APEX by DSK  -  generador gratuito de efectos de tráiler";
+    capEn = "APEX by DSK  -  free trailer FX generator"; capEs = juce::String::fromUTF8 ("APEX by DSK  -  generador gratuito de efectos de tráiler");
     frames (60);
     if (! writeWav (audio, work.getChildFile ("audio.wav"))) { std::printf ("cannot write audio\n"); return 1; }
     gx::ui::virtualClock() = nullptr;
@@ -209,7 +223,7 @@ int runTrailer (int argc, char** argv)
                 g.drawText ("DSK MUSIC", 0, H / 2 - 130, W, 40, juce::Justification::centred);
                 g.setColour (gx::ui::col::textDim.withAlpha (pre));
                 g.setFont (gx::ui::font (18.0f, true));
-                g.drawText (bi ? "presents  /  presenta" : "presents", 0, H / 2 - 92, W, 30, juce::Justification::centred);
+                g.drawText (bi ? juce::String ("presents  /  presenta") : juce::String ("presents"), 0, H / 2 - 92, W, 30, juce::Justification::centred);
             }
             // logo + title after the hit
             if (t >= hitT)
@@ -233,7 +247,7 @@ int runTrailer (int argc, char** argv)
                 const float k2 = juce::jlimit (0.0f, 1.0f, (t - hitT - 1.4f) / 0.8f);
                 g.setColour (juce::Colours::white.withAlpha (k2));
                 g.setFont (gx::ui::techFont (30.0f));
-                g.drawText (bi ? "COMING SOON  /  PRÓXIMAMENTE" : "COMING SOON", 0, H - 150, W, 44, juce::Justification::centred);
+                g.drawText (bi ? juce::String ("COMING SOON  /  MUY PRONTO") : juce::String ("COMING SOON"), 0, H - 150, W, 44, juce::Justification::centred);
                 g.setColour (gx::ui::col::accent2.withAlpha (k2));
                 g.setFont (gx::ui::font (17.0f, true));
                 g.drawText (bi ? "Free trailer FX generator  -  VST3 / AU / Standalone  -  dskmusic.com" : "Free trailer FX generator  -  VST3 / AU / Standalone  -  dskmusic.com", 0, H - 100, W, 28, juce::Justification::centred);

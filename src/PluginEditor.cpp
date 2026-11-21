@@ -265,9 +265,9 @@ bool ApexEditor::keyPressed (const juce::KeyPress& k)
     const auto mods = k.getModifiers();
     if (mods.isCommandDown() && k.getKeyCode() == 'Z' && ! mods.isShiftDown()) { undo.performUndo(); refreshAll(); return true; }
     if (mods.isCommandDown() && (k.getKeyCode() == 'Y' || (k.getKeyCode() == 'Z' && mods.isShiftDown()))) { undo.performRedo(); refreshAll(); return true; }
-    if (k.getKeyCode() == juce::KeyPress::spaceKey && ! mods.isAnyModifierKeyDown() && proc.wrapperType == juce::AudioProcessor::wrapperType_Standalone)
+    if (k.getKeyCode() == juce::KeyPress::spaceKey && ! mods.isAnyModifierKeyDown())   // plays the effect again (when the editor has the keyboard focus)
     {
-        proc.setPlaying (! proc.isPlayingInternal());
+        proc.trigger();
         return true;
     }
     if (currentPage == 0 && ! mods.isAnyModifierKeyDown() && fx->handleKey (k)) return true;
