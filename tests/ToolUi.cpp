@@ -247,6 +247,7 @@ int runToolExtras (const juce::String& cmd, int argc, char** argv)
         };
         auto shot = [&] (const juce::String& name)
         {
+            ge->hideToast();
             gx::ui::feedOffscreenCinemas (ed.get(), 1.0f);
             auto img = ed->createComponentSnapshot (ed->getLocalBounds(), true, 1.0f);
             juce::File f = out.getChildFile (name + ".png");

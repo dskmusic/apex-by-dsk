@@ -145,7 +145,7 @@ int runVideo (int argc, char** argv)
         frames (24);                                   // a short pause on the new effect
         p.trigger();
         const int total = (int) std::ceil ((s.dur + s.tail) * 30.0) + 6;
-        const int hitFrame = (int) std::lround (s.dur * 30.0) + 1;
+        const int hitFrame = (int) std::lround (s.dur * 30.0);   // the hit is the first sample of this block
         for (int i = 0; i < total; ++i)
         {
             if (i == hitFrame) flashLeft = 8;          // the picture "cut" on the hit

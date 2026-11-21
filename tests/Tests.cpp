@@ -237,6 +237,53 @@ static void testProcessor()
     check (std::abs (blk.getSample (0, 99)) < 1.0e-9f, "MIDI note: silent before its offset");
 }
 
+
+static void testOfflineBounce()
+{
+    std::printf("offline bounce: notes right after a parameter change\n");
+    ApexProcessor proc;
+    proc.prepareToPlay (48000.0, 512);
+    proc.setNonRealtime (true);
+    gx::GenOptions o; o.type = gx::fxBraam; o.style = 0; o.keepTime = false;
+    auto p = gx::designEffect (gx::Preset(), o, 31);
+    setParam (p, "dur_seconds", 0.5f); setParam (p, "tail_len", 1.0f);
+    p.applyTo (proc);                                   // no waiting: the very first block must already play this sound
+    juce::MidiBuffer m; m.addEvent (juce::MidiMessage::noteOn (1, 60, (juce::uint8) 127), 100);
+    juce::AudioBuffer<float> blk (2, 512);
+    proc.processBlock (blk, m);
+    auto ref = renderOf (gx::Preset::capture (proc));
+    bool same = true;
+    for (int i = 0; i < 412 && same; ++i) same = std::abs (blk.getSample (0, 100 + i) - ref.audio.getSample (0, i) * (float) 1.0) < 1.0e-6f;
+    check (same, "offline: note-on right after applyTo plays the new sound, shifted by its offset");
+    check (blk.getSample (0, 99) == 0.0f, "offline: silent before the note offset");
+    // change a parameter, note again, immediately: must follow the new parameters
+    juce::MidiBuffer none;
+    for (int k = 0; k < 400; ++k) { blk.clear(); proc.processBlock (blk, none); }   // let the first one play out / stop
+    proc.stopAll();
+    proc.setParamPlain (gx::P::seed, 777.0f);
+    juce::MidiBuffer m2; m2.addEvent (juce::MidiMessage::noteOn (1, 64, (juce::uint8) 127), 0);
+    juce::AudioBuffer<float> blk2 (2, 512);
+    proc.processBlock (blk2, none);   // consumes the stop
+    proc.processBlock (blk2, m2);
+    auto ref2 = renderOf (gx::Preset::capture (proc));
+    bool same2 = true;
+    for (int i = 0; i < 512 && same2; ++i) same2 = std::abs (blk2.getSample (0, i) - ref2.audio.getSample (0, i)) < 1.0e-6f;
+    check (same2, "offline: a parameter changed just before the note is respected");
+    // another sample rate is never played with the old buffer
+    ApexProcessor p2;
+    p2.prepareToPlay (48000.0, 512);
+    for (int k = 0; k < 200 && ! (p2.renderer().latest() && p2.renderer().isCurrent()); ++k) juce::Thread::sleep (25);
+    p2.prepareToPlay (44100.0, 512);
+    p2.setNonRealtime (true);
+    juce::AudioBuffer<float> b3 (2, 512);
+    juce::MidiBuffer m3; m3.addEvent (juce::MidiMessage::noteOn (1, 60, (juce::uint8) 127), 0);
+    p2.processBlock (b3, m3);
+    auto r3 = renderOf (gx::Preset::capture (p2), 44100.0);
+    bool same3 = true;
+    for (int i = 0; i < 512 && same3; ++i) same3 = std::abs (b3.getSample (0, i) - r3.audio.getSample (0, i)) < 1.0e-6f;
+    check (same3, "after a sample-rate change the effect is re-rendered at the new rate");
+}
+
 int runAll()
 {
     testParams();
@@ -248,6 +295,7 @@ int runAll()
     testAllTypes();
     testPresets();
     testProcessor();
+    testOfflineBounce();
     std::printf ("\n%d checks passed, %d failed\n", passed, failed);
     return failed == 0 ? 0 : 1;
 }

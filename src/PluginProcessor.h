@@ -19,6 +19,8 @@ public:
     std::shared_ptr<const gx::FxResult> variation (int pitchClass) const;   // midi "variation per note" bank (may be null while rendering)
     int generation() const { return gen.load(); }
     bool isCurrent() const;               // the newest render reflects every parameter change so far
+    std::shared_ptr<const gx::FxResult> renderNow();                   // synchronous render of the current parameters (offline bounces)
+    std::shared_ptr<const gx::FxResult> renderVariationNow (int pitchClass);
     bool busy() const { return working.load(); }
     void wake() { notify(); }
     void setSampleRate (double sr) { sampleRate.store (sr); }
@@ -28,6 +30,8 @@ private:
     mutable juce::SpinLock lock;
     std::shared_ptr<const gx::FxResult> current;
     std::array<std::shared_ptr<const gx::FxResult>, 12> vars;
+    std::array<uint32_t, 12> varStamp {};
+    double currentBpm() const;
     std::vector<std::pair<double, std::shared_ptr<const gx::FxResult>>> keepAlive;   // never let the audio thread drop the last reference
     std::atomic<int> gen { 0 };
     std::atomic<bool> working { false };
@@ -115,6 +119,11 @@ private:
     struct Voice { std::shared_ptr<const gx::FxResult> fx; int pos = 0; float gain = 1.0f; float fade = 1.0f; bool stopping = false; bool active = false; };
     void startVoice (std::shared_ptr<const gx::FxResult> f, int startPos, float gain, bool stealOldest = true);
 
+    struct Ev { int offset = 0; std::shared_ptr<const gx::FxResult> f; float gain = 1.0f; };
+    struct PendingNote { int pc = 0; float gain = 1.0f; };
+    std::array<Ev, 16> evBuf;                  // fixed storage: processBlock never allocates
+    std::array<PendingNote, 8> pendingNotes;
+    int numPending = 0;
     std::unique_ptr<FxRenderer> fx;
     std::vector<std::atomic<float>*> raw;
     std::vector<juce::RangedAudioParameter*> paramPtrs;

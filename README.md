@@ -16,7 +16,7 @@ Pick a type, press **GENERATE**, and get a ready-to-use risers, impact, whoosh, 
 - **Deterministic by seed:** same seed = the same sound, always, so a DAW bounce is bit-identical to what you heard. New seed, **Mutate** and **Mix** give endless variations.
 - **Trigger it your way:** the Play button, any MIDI note (or *a different variation per note*), or **lock to the DAW timeline** so the effect follows the host position from the beat you choose.
 - **Drag it out:** drag the effect as a **WAV** straight into your DAW or video editor (Premiere, DaVinci Resolve, CapCut…). Export WAV / FLAC / OGG at 44.1 / 48 / 96 kHz with head and tail, or a **pack** of N numbered variations with `pack.json` / `pack.csv` metadata (hit time and frame, LUFS, peak).
-- **Video-safe level:** loudness normalised to a LUFS target (-18 by default) with a -1 dBFS brick-wall limiter; no DC, no clicks (checked automatically).
+- **Video-safe level:** loudness normalised to a LUFS target (-16 by default, measured on the loudest 3 seconds so a long tail never makes the hit quieter) with a -1 dBFS brick-wall limiter; no DC, no clicks (checked automatically).
 - **Waveform + spectrogram** with the Hit Point, ruler and playhead, and a **GPU cinematic visual** (shock waves, converging light streaks, anamorphic flare) that reacts to the effect.
 - **252 factory effects**, validated and level-matched; preset browser with tags, favourites and ratings, A/B, undo/redo, MIDI learn.
 - Resizable, maximisable, **English / Español** interface (automatic or manual) and a friendly built-in Help page.

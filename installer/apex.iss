@@ -7,7 +7,7 @@
 #endif
 
 [Setup]
-AppId={{A5B06B69-D1FB-4B0A-BCC2-0FF6BD966FC3}
+AppId={{4122ED6B-9559-4FCA-AC84-E3DA240B98C1}
 AppName=Apex by DSK
 AppVersion={#AppVersion}
 AppPublisher=DSK Music

@@ -25,6 +25,7 @@ public:
     void showPage (int index);
     void setUiScale (float s);
     void toast (const juce::String& msg);
+    void hideToast() { toastLabel.setVisible (false); }
     void advanceFrames (double dt);   // used by the screenshot tool
     gx::ui::FxPage& fxPage() { return *fx; }
     void rebuildUi();                 // language switch (also exercised by ApexTool screenshot)

@@ -12,7 +12,47 @@ FxRenderer::~FxRenderer() { abortRender.store (true); stopThread (8000); }
 bool FxRenderer::isCurrent() const { return renderedStamp.load() == proc.changeStamp.load(); }
 
 std::shared_ptr<const gx::FxResult> FxRenderer::latest() const { const juce::SpinLock::ScopedLockType sl (lock); return current; }
-std::shared_ptr<const gx::FxResult> FxRenderer::variation (int pc) const { const juce::SpinLock::ScopedLockType sl (lock); return vars[(size_t) juce::jlimit (0, 11, pc)]; }
+std::shared_ptr<const gx::FxResult> FxRenderer::variation (int pc) const
+{
+    const juce::SpinLock::ScopedLockType sl (lock);
+    const size_t k = (size_t) juce::jlimit (0, 11, pc);
+    return varStamp[k] == proc.changeStamp.load() ? vars[k] : nullptr;   // never a variation of older parameters
+}
+
+double FxRenderer::currentBpm() const
+{
+    const float mode = proc.getParam (gx::P::durMode);
+    return mode > 0.5f && mode < 1.5f ? proc.hostBpm() : 0.0;
+}
+
+std::shared_ptr<const gx::FxResult> FxRenderer::renderNow()
+{
+    const uint32_t stamp = proc.changeStamp.load();
+    const auto pv = proc.paramVector();
+    auto res = std::make_shared<gx::FxResult>();
+    gx::renderFx (gx::specFromParams (pv.data(), sampleRate.load(), currentBpm()), *res, nullptr);
+    const juce::SpinLock::ScopedLockType sl (lock);
+    keepAlive.emplace_back (juce::Time::getMillisecondCounterHiRes() * 0.001, current);
+    current = res;
+    gen.fetch_add (1);
+    renderedStamp.store (stamp);
+    return res;
+}
+
+std::shared_ptr<const gx::FxResult> FxRenderer::renderVariationNow (int pc)
+{
+    const size_t k = (size_t) juce::jlimit (0, 11, pc);
+    const uint32_t stamp = proc.changeStamp.load();
+    { const juce::SpinLock::ScopedLockType sl (lock); if (varStamp[k] == stamp && vars[k]) return vars[k]; }
+    auto q = proc.paramVector();
+    q[(size_t) gx::P::seed] = (float) (1 + ((int) std::lround (q[(size_t) gx::P::seed]) + ((int) k + 1) * 7919) % 99999);
+    auto res = std::make_shared<gx::FxResult>();
+    gx::renderFx (gx::specFromParams (q.data(), sampleRate.load(), currentBpm()), *res, nullptr);
+    const juce::SpinLock::ScopedLockType sl (lock);
+    keepAlive.emplace_back (juce::Time::getMillisecondCounterHiRes() * 0.001, vars[k]);
+    vars[k] = res; varStamp[k] = stamp;
+    return res;
+}
 
 void FxRenderer::run()
 {
@@ -69,14 +109,22 @@ void FxRenderer::run()
                 const juce::SpinLock::ScopedLockType sl (lock);
                 keepAlive.emplace_back (juce::Time::getMillisecondCounterHiRes() * 0.001, vars[(size_t) k]);
                 vars[(size_t) k] = std::move(res);
+                varStamp[(size_t) k] = stamp;
                 if (k == 11) varsDone = true;
             }
             working.store (false);
         }
         // forget retired buffers after a minute
         const double now = juce::Time::getMillisecondCounterHiRes() * 0.001;
-        const juce::SpinLock::ScopedLockType sl (lock);
-        keepAlive.erase (std::remove_if (keepAlive.begin(), keepAlive.end(), [now] (const auto& e) { return now - e.first > 60.0; }), keepAlive.end());
+        std::vector<std::shared_ptr<const gx::FxResult>> trash;   // destroyed after the lock is released
+        {
+            const juce::SpinLock::ScopedLockType sl (lock);
+            for (auto it = keepAlive.begin(); it != keepAlive.end();)
+            {
+                if (now - it->first > 5.0 && (it->second == nullptr || it->second.use_count() == 1)) { trash.push_back (std::move (it->second)); it = keepAlive.erase (it); }
+                else ++it;
+            }
+        }
     }
 }
 
@@ -163,17 +211,33 @@ void ApexProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     if (bpmH > 1.0) hostBpmAtomic.store (bpmH);
 
     const int midiMode = (int) std::lround (getParam (gx::P::midiMode));
+    const bool offline = isNonRealtime();
+    auto usable = [this] (const std::shared_ptr<const gx::FxResult>& f) { return f != nullptr && std::abs (f->sampleRate - sr.load()) < 1.0; };
     auto mainFx = fx->latest();
-    struct Ev { int offset; std::shared_ptr<const gx::FxResult> f; float gain; };
-    std::vector<Ev> events;   // small; MIDI bursts only
+    // A sound is playable only when it matches the current parameters AND the sample rate. In an offline bounce we simply
+    // render it right here (blocking is fine there); in real time triggers wait for the background render.
+    bool ready = usable (mainFx) && fx->isCurrent();
+    if (offline && ! ready) { mainFx = fx->renderNow(); ready = true; }
+    int evCount = 0;
+    auto addEvent = [&] (int offset, std::shared_ptr<const gx::FxResult> f, float gain)
+    {
+        if (f && evCount < (int) evBuf.size()) { evBuf[(size_t) evCount].offset = offset; evBuf[(size_t) evCount].f = std::move (f); evBuf[(size_t) evCount].gain = gain; ++evCount; }
+    };
+    auto pick = [&] (int pc) -> std::shared_ptr<const gx::FxResult>
+    {
+        if (midiMode != gx::mmVariation) return mainFx;
+        auto v = fx->variation (pc);
+        if (! v && offline) v = fx->renderVariationNow (pc);
+        return v ? v : mainFx;   // real time: the variation bank is still being prepared, play the base effect meanwhile
+    };
     for (const auto meta : midi)
     {
         const auto m = meta.getMessage();
         if (m.isNoteOn() && midiMode != gx::mmOff)
         {
-            auto f = midiMode == gx::mmVariation ? fx->variation (m.getNoteNumber() % 12) : mainFx;
-            if (! f) f = mainFx;
-            events.push_back ({ meta.samplePosition, std::move (f), juce::jmax (0.15f, m.getFloatVelocity()) });
+            const float gn = juce::jmax (0.15f, m.getFloatVelocity());
+            if (ready) addEvent (meta.samplePosition, pick (m.getNoteNumber() % 12), gn);
+            else if (numPending < (int) pendingNotes.size()) pendingNotes[(size_t) numPending++] = { m.getNoteNumber() % 12, gn };   // held until the new sound exists
         }
         else if (m.isAllNotesOff() || m.isAllSoundOff()) pendingStop.store (true);
         else if (m.isController())
@@ -189,19 +253,20 @@ void ApexProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
                 paramPtrs[(size_t) pi]->setValueNotifyingHost ((float) m.getControllerValue() / 127.0f);
         }
     }
-    if (pendingStop.exchange (false)) { for (auto& v : voices) if (v.active) v.stopping = true; }
-    if (pendingTrigger.load())
+    if (pendingStop.exchange (false)) { numPending = 0; for (auto& v : voices) if (v.active) v.stopping = true; }
+    if (pendingTrigger.load() || numPending > 0)
     {
-        // wait (up to 5 s) until the sound has been re-rendered after the last parameter change
-        if (fx->isCurrent() || (triggerWaited += n) > (int) (5.0 * sr.load()))
+        if (ready)
         {
-            pendingTrigger.store (false); triggerWaited = 0;
-            events.push_back ({ 0, mainFx, pendingVelocity.load() });
+            if (pendingTrigger.exchange (false)) addEvent (0, mainFx, pendingVelocity.load());
+            for (int k = 0; k < numPending; ++k) addEvent (0, pick (pendingNotes[(size_t) k].pc), pendingNotes[(size_t) k].gain);
+            numPending = 0; triggerWaited = 0;
         }
+        else if ((triggerWaited += n) > (int) (5.0 * sr.load())) { pendingTrigger.store (false); numPending = 0; triggerWaited = 0; }   // never hold a trigger forever
     }
 
     // host timeline lock: position follows the DAW, so bounces match exactly
-    const bool lockHost = getParam (gx::P::hostSync) > 0.5f && hp && hasPpq && mainFx != nullptr;
+    const bool lockHost = getParam (gx::P::hostSync) > 0.5f && hp && hasPpq && ready && mainFx != nullptr;
     long long hostPos = 0;
     if (lockHost)
     {
@@ -211,15 +276,15 @@ void ApexProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     }
     else hostVoice.active = false;
 
-    std::sort (events.begin(), events.end(), [] (const Ev& a, const Ev& b) { return a.offset < b.offset; });
-    size_t ev = 0;
+    std::sort (evBuf.begin(), evBuf.begin() + evCount, [] (const Ev& x, const Ev& y) { return x.offset < y.offset; });
+    int ev = 0;
     float* L = buffer.getWritePointer (0);
     float* R = buffer.getWritePointer (1);
     const float fadeStep = 1.0f / (float) (0.012 * sr.load());
     float newestPos = -1.0f;
     for (int i = 0; i < n; ++i)
     {
-        while (ev < events.size() && events[ev].offset <= i) { startVoice (events[ev].f, 0, events[ev].gain); ++ev; }
+        while (ev < evCount && evBuf[(size_t) ev].offset <= i) { startVoice (evBuf[(size_t) ev].f, 0, evBuf[(size_t) ev].gain); ++ev; }
         for (auto& v : voices)
         {
             if (! v.active) continue;
@@ -246,6 +311,7 @@ void ApexProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBu
     for (auto& v : voices)
         if (v.active) { ++act; newestPos = juce::jmax (newestPos, (float) v.pos / (float) juce::jmax (1, v.fx->audio.getNumSamples())); }
     if (lockHost && mainFx && hostPos + n > 0 && hostPos < mainFx->audio.getNumSamples()) { ++act; newestPos = juce::jmax (newestPos, (float) (hostPos + n) / (float) mainFx->audio.getNumSamples()); }
+    for (int k = 0; k < evCount; ++k) evBuf[(size_t) k].f.reset();
     voicesActive.store (act);
     playPos.store (act ? newestPos : -1.0f);
 

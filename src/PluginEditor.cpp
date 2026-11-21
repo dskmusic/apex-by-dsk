@@ -216,6 +216,7 @@ void ApexEditor::advanceFrames (double dt)
 {
     frames.update (frame, dt);
     frame.reduced = settings.animation() == 1;
+    header->setPresetName (proc.currentMeta.name);
     header->tick (frame);
     pages[(size_t) currentPage]->tick (frame);
 }

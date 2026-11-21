@@ -16,7 +16,7 @@ Elige un tipo, pulsa **GENERATE** y obtén un riser, impacto, whoosh, braam, cam
 - **Determinista por semilla:** misma semilla = mismo sonido, siempre; el bounce del DAW es idéntico a lo que oíste. Nueva semilla, **Mutar** y **Mezclar** dan variaciones sin fin.
 - **Dispáralo como quieras:** botón Play, cualquier nota MIDI (o *una variación distinta por nota*), o **ancla a la línea de tiempo del DAW** para que el efecto siga la posición del host desde el tiempo que elijas.
 - **Arrástralo:** arrastra el efecto como **WAV** directamente a tu DAW o editor de vídeo (Premiere, DaVinci Resolve, CapCut…). Exporta WAV / FLAC / OGG a 44,1 / 48 / 96 kHz con cabeza y cola, o un **pack** de N variaciones numeradas con metadatos `pack.json` / `pack.csv` (tiempo y fotograma del golpe, LUFS, pico).
-- **Nivel seguro para vídeo:** volumen normalizado a un objetivo LUFS (-18 por defecto) con limitador de pico a -1 dBFS; sin DC ni chasquidos (se comprueba automáticamente).
+- **Nivel seguro para vídeo:** volumen normalizado a un objetivo LUFS (-16 por defecto, medido en los 3 segundos más fuertes para que una cola larga no baje el golpe) con limitador de pico a -1 dBFS; sin DC ni chasquidos (se comprueba automáticamente).
 - **Forma de onda + espectrograma** con el punto de golpe, regla y cabezal, y un **visual cinematográfico por GPU** (ondas de choque, haces de luz convergentes, destello anamórfico) que reacciona al efecto.
 - **252 efectos de fábrica**, validados y con el nivel igualado; navegador de presets con etiquetas, favoritos y valoraciones, A/B, deshacer/rehacer, MIDI learn.
 - Redimensionable y maximizable, interfaz **English / Español** (automática o manual) y página de Ayuda integrada.
