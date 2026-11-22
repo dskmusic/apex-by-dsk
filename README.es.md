@@ -4,6 +4,12 @@ Instrumento gratuito VST3 / AU / Standalone de [DSK Music](https://www.dskmusic.
 
 **[Descargar](#descarga)** · [Página del producto](https://www.dskmusic.com/apex/) · [Última versión](https://github.com/dskmusic/apex-by-dsk/releases/latest)
 
+[![build](https://github.com/dskmusic/apex-by-dsk/actions/workflows/build.yml/badge.svg)](https://github.com/dskmusic/apex-by-dsk/actions/workflows/build.yml)
+[![release](https://img.shields.io/github/v/release/dskmusic/apex-by-dsk)](https://github.com/dskmusic/apex-by-dsk/releases/latest)
+[![descargas](https://img.shields.io/github/downloads/dskmusic/apex-by-dsk/total?label=descargas)](https://github.com/dskmusic/apex-by-dsk/releases)
+![licencia](https://img.shields.io/badge/licencia-GPLv3-blue)
+
+
 Elige un tipo, pulsa **GENERATE** y obtén un riser, impacto, whoosh, braam, cama de tensión, reverso, downer, glitch o transición listo para usar. Todo se genera por síntesis (sin librerías de muestras), así que cada efecto es distinto, el plugin casi no pesa y nadie tiene que comprar una librería entera.
 
 ![Apex](docs/screenshots-es/fx.png)
