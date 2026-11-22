@@ -1,6 +1,8 @@
 # Changelog
 
 ## [Unreleased]
+
+## [1.0.0] - 2026-11-22
 ### Added
 - First version of Apex by DSK: a one-button generator of trailer effects and cinematic sound design, 100 % synthesised (no samples).
 - 9 effect types with 4 styles each: Riser, Impact, Whoosh, Braam, Tension, Reverse, Downer, Glitch and Transition.
